@@ -1,0 +1,4 @@
+bagpy==0.5
+movement-primitives==0.7.1
+pytransform3d==3.5.0
+ultralytics==8.2.28
