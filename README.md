@@ -32,3 +32,8 @@ To make sure you don't have to install the dependencies every time you start the
 ```bash
 docker commit <container_id> <image_name>
 ```
+
+Killing tmux
+```bash
+tmux kill-ses
+```

@@ -115,8 +115,16 @@ def generate_goal(x, y, z, q_x, q_y, q_z, q_w):
 	return goal
 
 if __name__ == '__main__':
-    # TODO: execute ObjectDetector seperately?
+    # TODO: call rospy init here instead of in the separate files
+
+    # TODO: execute ObjectDetector seperately? -> Sergej
+    # one node, which is always running and makes object detector service available
+    # subscribe to this topic, which starts the object detection (topic or better service)
+    # call service to get the detection output
+    # stop calling the service once the can is grasped
+
     # Initialize ObjectDetector
+    # TODO: synchronize depth and rgb images in object detector class
     objectDetector = ObjectDetector()
 
     # Initialize GoalPublisher
@@ -137,12 +145,17 @@ if __name__ == '__main__':
     print("Moving to table")
     # goal position is from .yaml file
     goal_pose = generate_goal(x=2.0, y=-2.2, z=0.0, q_x=0.0, q_y=0.0, q_z=-0.7071067811865476, q_w=0.7071067811865476)
-    # TODO: implement search algorithm for table (extension)
+
+    # for now we use fixed position, later if there is time we can search for the table
     move_to_table(goalPublisher, goal_pose)
 
-    # TODO: not yet working, poses instead of trajectory has to be published
+    # TODO: not yet working, poses instead of trajectory has to be published -> Markus
+    # "/whole_body_kinematic_controller/gaze_objective_xtion_optical_frame_goal" topic
+    # When you publish PoseStamped messages to this topic the robot will move its head, so it looks at the point you have sent
     move_head(objectDetector)
 
+    # get can position
+    # TODO: get from published topic from object detector (or marker)
     can_position = objectDetector.can_position
     
     grasp_object(dmp_ros, gripper, can_position=can_position)
@@ -155,5 +168,20 @@ if __name__ == '__main__':
     goal_pose = generate_goal(x=0.5, y=1.4, z=0.0, q_x=0.0, q_y=0.0, q_z=0.7071067811865476, q_w=0.7071067811865476)
     move_to_table(goalPublisher, goal_pose)
 
-    # #TODO: goal position has to be changed (is same table still)
+    # goal position should be in robot base frame (correct?)
     place_object(dmp_ros, gripper, target_position=np.array([0.55, -0.2, 0.63]))
+
+    # TODO: Report 
+    # Anish will start with the basic sections
+
+    # TODO: Provide shell scripts for seperate actions -> Moritz
+
+
+    # Extension:
+    # Implement on a real TIAGO++ robot
+    # Handover beer can to person instead of placing on table
+    #   same DMP with different goal pose can be used (?)
+    #   Human Detection (YOLO), approximate hand, give goal
+
+    # Detect table? too much work, data set collection etc.
+    
