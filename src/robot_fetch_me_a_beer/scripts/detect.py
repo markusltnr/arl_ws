@@ -19,7 +19,6 @@ import tf
     
 class ObjectDetector:
     def __init__(self):
-        rospy.init_node("detect")
 
         # depth image, will be updated by subscriber
         self.depth_img = np.zeros((480, 640))
@@ -167,6 +166,8 @@ class ObjectDetector:
         return result.orig_img
 
 if __name__ == '__main__':
+    rospy.init_node("detect")
+
     image_converter = ObjectDetector()
 
     try: 

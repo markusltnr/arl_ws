@@ -13,7 +13,7 @@ from manipulate import Gripper, DmpRos
 from detect import ObjectDetector
 from navigate import GoalPublisher
 
-dmp_folder = '/home/user/exchange/arl_ws/src/robot_fetch_me_a_beer/'
+dmp_folder = '/home/user/exchange/arl_ws/src/robot_fetch_me_a_beer/dmp/'
 
 def grasp_object(dmp_ros : DmpRos, gripper : Gripper, can_position):
     print("Grasping Object")
@@ -70,38 +70,34 @@ def move_to_table(goalPublisher : GoalPublisher, goal_pose : MoveBaseGoal) :
     result = goalPublisher.publish_goal(goal_pose)
     return result
 
-def move_head(objectDetector : ObjectDetector):
+def move_head(x = 0.8, y = -0.2, z = 0.8):
     """
-        move_head function use a while loop to move head joints until object is found by TIAGo
+        Move the head to a specific position. x, y and z in the robot base frame
     """
 
     # publsih to head controller the join trajectory 
     pub_head_controller = rospy.Publisher(
-        '/head_controller/command', JointTrajectory, queue_size=1)
-    head_2_movement = 0
+        '/whole_body_kinematic_controller/gaze_objective_xtion_optical_frame_goal', PoseStamped, queue_size=1, latch=True)
 
     print("Moving head")
     # loop function until object was found
-    while objectDetector.can_position is None:
-        # trajectory_msgs --> JointTrajectory
-        trajectory = JointTrajectory()
-        # Define joint in use in order to move head 
-        trajectory.joint_names = ['head_1_joint', 'head_2_joint']
+   
+    # trajectory_msgs --> JointTrajectory
+    gaze_pose = PoseStamped()
+    # Define joint in use in order to move head 
+    gaze_pose.pose.position.x = x
+    gaze_pose.pose.position.y = y
+    gaze_pose.pose.position.z = z
+    gaze_pose.pose.orientation.x = 0.0
+    gaze_pose.pose.orientation.y = 0.0
+    gaze_pose.pose.orientation.z = 0.0
+    gaze_pose.pose.orientation.w = 0.0
+    gaze_pose.header.stamp.secs = 0
+    gaze_pose.header.stamp.nsecs = 0
+    gaze_pose.header.seq = 1
+    gaze_pose.header.frame_id = 'base_footprint'
 
-        # ***The action can be used to give a trajectory to the head expressed in several waypoints***. 
-        trajectory_points = JointTrajectoryPoint()
-        # change coordinate just along z axis
-        trajectory_points.positions = [0.0, head_2_movement]
-        # Define time action 
-        trajectory_points.time_from_start = rospy.Duration(1.0)
-
-        trajectory.points.append(trajectory_points)
-        
-        pub_head_controller.publish(trajectory)
-        # interval to start next movement
-        rospy.sleep(0.8)
-        # Define head movment in a lowering cycle with -0.1 step to a max -1, until object is detected
-        head_2_movement = max(-1, head_2_movement-0.1)
+    pub_head_controller.publish(gaze_pose)
 
 def generate_goal(x, y, z, q_x, q_y, q_z, q_w):
     # generate a MoveBaseGoal that can be published from pose
@@ -115,16 +111,21 @@ def generate_goal(x, y, z, q_x, q_y, q_z, q_w):
 	return goal
 
 if __name__ == '__main__':
-    # TODO: call rospy init here instead of in the separate files
+    # Initialize the ROS node
+    rospy.init_node("pipeline")
 
     # TODO: execute ObjectDetector seperately? -> Sergej
     # one node, which is always running and makes object detector service available
     # subscribe to this topic, which starts the object detection (topic or better service)
     # call service to get the detection output
     # stop calling the service once the can is grasped
+    
+    # Move the head to a specific position
+    move_head()
 
     # Initialize ObjectDetector
     # TODO: synchronize depth and rgb images in object detector class
+
     objectDetector = ObjectDetector()
 
     # Initialize GoalPublisher
@@ -152,7 +153,7 @@ if __name__ == '__main__':
     # TODO: not yet working, poses instead of trajectory has to be published -> Markus
     # "/whole_body_kinematic_controller/gaze_objective_xtion_optical_frame_goal" topic
     # When you publish PoseStamped messages to this topic the robot will move its head, so it looks at the point you have sent
-    move_head(objectDetector)
+    move_head()
 
     # get can position
     # TODO: get from published topic from object detector (or marker)

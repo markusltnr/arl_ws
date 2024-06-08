@@ -43,17 +43,11 @@ class Gripper:
         self._grasp_service()
 
 class DmpRos:
-    def __init__(self):
-        # ROS node initialization
-        rospy.init_node("dmp_play")
-        
+    def __init__(self):       
         # ROS parameters
         self.motion = rospy.get_param('/motion', 'grasp')
 
         print(f"Playing motion '{self.motion}'.\n")
-
-        rospack = rospkg.RosPack()
-        package_path = rospack.get_path('arl_manipulation_baseline')
         
         # TF frames
         self._base_frame = "base_footprint"
@@ -256,8 +250,11 @@ def plot_trajectory(poses):
     plt.show()
 
 if __name__ == '__main__':
+    # Initialize the ROS node
+    rospy.init_node("dmp_play")
+
     action = sys.argv[1]
-    dmp_parameter_path = '/home/user/exchange/Manipulation/2024_ARL_demos_all/_2024-03-14-15-00-43/' + str(action) + '_dmp.npz'
+    dmp_parameter_path = '/home/user/exchange/arl_ws/src/robot_fetch_me_a_beer/dmp/' + str(action) + '_dmp.npz'
     rospy.set_param('motion', action)
 
     # Initialize the gripper for the right arm.
