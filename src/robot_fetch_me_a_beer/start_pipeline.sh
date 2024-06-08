@@ -18,7 +18,7 @@ tmux split-window -v
 
 tmux select-pane -t 1
 tmux send-keys 'source /home/user/exchange/arl_ws/devel/setup.bash' C-m
-tmux send-keys 'roslaunch tiago_dual_gazebo tiago_dual_gazebo.launch public_sim:=true end_effector_left:=pal-gripper end_effector_right:=pal-gripper world:=pick_coca gzpose:="-x 1.95 -y -2.3 -z 0.0 -R 0.0 -P 0.0 -Y -1.57" base_type:=omni_base' C-m
+tmux send-keys 'roslaunch tiago_dual_171_gazebo tiago_dual_navigation.launch world:=pick advanced_navigation:=true end_effector_left:=pal-gripper end_effector_right:=pal-gripper' C-m
 
 tmux select-pane -t 2
 tmux send-keys  "rosservice call /controller_manager/switch_controller \"start_controllers: 

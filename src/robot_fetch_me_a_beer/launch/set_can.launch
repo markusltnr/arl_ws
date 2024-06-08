@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <launch>
 	<!-- Arguments -->
-	<arg name="can_pose" default="1" />
+	<arg name="can_pose" default="0" />
 
 	<!-- Run object positioning script -->
-	<node name="set_world" pkg="robot_fetch_me_a_beer" type="set_world.py" output="screen" required="true" >
+	<node name="set_world" pkg="robot_fetch_me_a_beer" type="set_can.py" output="screen" required="true" >
 		<param name="can_pose" value="$(arg can_pose)"/>
 	</node>
 
