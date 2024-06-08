@@ -13,7 +13,7 @@ from manipulate import Gripper, DmpRos
 from detect import ObjectDetector
 from navigate import GoalPublisher
 
-dmp_folder = '/home/user/exchange/Manipulation/2024_ARL_demos_all/_2024-03-14-15-00-43/'
+dmp_folder = '/home/user/exchange/arl_ws/src/robot_fetch_me_a_beer/'
 
 def grasp_object(dmp_ros : DmpRos, gripper : Gripper, can_position):
     print("Grasping Object")
