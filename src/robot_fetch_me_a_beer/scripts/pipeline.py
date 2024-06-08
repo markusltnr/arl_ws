@@ -137,6 +137,7 @@ if __name__ == '__main__':
     print("Moving to table")
     # goal position is from .yaml file
     goal_pose = generate_goal(x=2.0, y=-2.2, z=0.0, q_x=0.0, q_y=0.0, q_z=-0.7071067811865476, q_w=0.7071067811865476)
+    # TODO: implement search algorithm for table (extension)
     move_to_table(goalPublisher, goal_pose)
 
     # TODO: not yet working, poses instead of trajectory has to be published
