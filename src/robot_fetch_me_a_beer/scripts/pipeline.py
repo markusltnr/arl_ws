@@ -12,6 +12,7 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from manipulate import Gripper, DmpRos
 from detect import ObjectDetector
 from navigate import GoalPublisher
+from robot_fetch_me_a_beer.srv import DetectionControl
 
 dmp_folder = '/home/user/exchange/arl_ws/src/robot_fetch_me_a_beer/dmp/'
 
@@ -157,11 +158,30 @@ if __name__ == '__main__':
 
     # get can position
     # TODO: get from published topic from object detector (or marker)
+    rospy.wait_for_service('control_detection')
+    try:
+        control_detection = rospy.ServiceProxy('control_detection', DetectionControl)
+        # Enable detection
+        response = control_detection(True)
+        rospy.loginfo(response.message)
+        
+        can_position = objectDetector.can_position
+        grasp_object(dmp_ros, gripper, can_position=can_position)
+
+        #maybe sleep for a couple of seconds at this point?
+        rospy.sleep(5)
+
+        # Disable detection
+        response = control_detection(False)
+        rospy.loginfo(response.message)
+
+    except rospy.ServiceException as e:
+        rospy.logerr(f"Service call failed: {e}")
     can_position = objectDetector.can_position
     
-    grasp_object(dmp_ros, gripper, can_position=can_position)
+    
 
-    # TODO: stop yolo 
+    # TODO: stop yolo (done in 'Disable detection' above)
 
     retrieve_object(dmp_ros, gripper, target_position=np.array([0.27094205, -0.4120216, 1.05597785]))
 

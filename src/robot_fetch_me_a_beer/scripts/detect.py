@@ -16,12 +16,16 @@ import cv2
 from ultralytics import YOLO
 from visualization_msgs.msg import Marker
 import tf
+import message_filters
+from robot_fetch_me_a_beer.srv import DetectionControl
     
 class ObjectDetector:
     def __init__(self):
 
         # depth image, will be updated by subscriber
         self.depth_img = np.zeros((480, 640))
+        
+        self.can_position = None
 
         # get intrinsic matrix 
         print("Getting camera info ...")
@@ -31,55 +35,60 @@ class ObjectDetector:
         print(self.K)
 
         # load YOLO model
-        # ID = 6 # here add your trainID directory
         self.model = YOLO("/home/user/exchange/arl_ws/src/robot_fetch_me_a_beer/yolo/best.pt")
-        # self.model = YOLO('yolov8n.pt')
         
         self.listener = tf.TransformListener()
-
-        # TODO: synchronize depth and rgb image subscribers
 
         # initialize ROS publishers
         self.image_pub = rospy.Publisher("/xtion/rgb/image_raw2", Image, queue_size=10)
         self.marker_pub = rospy.Publisher("/visualization_marker", Marker, queue_size = 2)
-        # self.image_pub = rospy.Publisher("/kinect2/qhd/image_color_rect2", Image, queue_size=10)
         self.bridge = CvBridge()
 
         # initialize ROS subscribers
-        # self.image_sub = rospy.Subscriber("/kinect2/qhd/image_color_rect", Image, self.callback)
-        self.image_sub = rospy.Subscriber("/xtion/rgb/image_raw", Image, self.callback_image)
-        self.depth_sub = rospy.Subscriber("/xtion/depth_registered/image_raw", Image, self.callback_depth)
+        self.image_sub = message_filters.Subscriber("/xtion/rgb/image_raw", Image)
+        self.depth_sub = message_filters.Subscriber("/xtion/depth_registered/image_raw", Image)
 
-        self._xtion_frame = "xtion_rgb_optical_frame" # frame of depth camera
-        self._map_frame = "map" # world frame
-        self._base_frame = "base_footprint" # robot base frame
-
-        self.can_position = None
-
-        print("Successfully initialized Publisher/Subscriber and YOLO model!")
-
-    def callback_image(self, data):
-        time = data.header.stamp
-        try:
-            image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-        except CvBridgeError as e:
-            print(e)
+        # Time synchronizer for RGB and Depth images
+        self.ts = message_filters.ApproximateTimeSynchronizer([self.image_sub, self.depth_sub], queue_size=10, slop=0.1)
+        self.ts.registerCallback(self.image_callback)
         
-        results = self.detect_objects(image)
-        annotated_image = self.annotate_image(results[0], time)
-    
-        try:
-            self.image_pub.publish(self.bridge.cv2_to_imgmsg(annotated_image, "bgr8"))
-        except CvBridgeError as e:
-            print(e)
+        self._xtion_frame = "xtion_rgb_optical_frame"   # frame of depth camera
+        self._map_frame = "map"                         # world frame
+        self._base_frame = "base_footprint"             # robot base frame
 
-    def callback_depth(self, data):
-        try:
-            depth_img = self.bridge.imgmsg_to_cv2(data, "passthrough")
-        except CvBridgeError as e:
-            print(e)
+        self.active = False                             # Is the detector activated or not
 
-        self.depth_img = depth_img
+        rospy.Service('control_detection', DetectionControl, self.control_detection)
+
+        rospy.loginfo("Successfully initialized Publisher/Subscriber and YOLO model!")
+
+    def control_detection(self, request):
+        self.active = request.activate
+        return True, f"Detection {'enabled' if self.active else 'disabled'}"
+
+
+    def image_callback(self, rgb_msg, depth_msg):
+        if not self.active:
+            return
+        
+        time = rgb_msg.header.stamp
+        try:
+            # Convert ROS Image message to OpenCV image
+            cv_image = self.bridge.imgmsg_to_cv2(rgb_msg, "bgr8")
+            depth_image = self.bridge.imgmsg_to_cv2(depth_msg, "32FC1")     # or passthrough ?
+            self.depth_img = depth_image
+
+            # Detect objects using YOLOv8
+            results = self.model.track(source=cv_image, persist=True, conf=0.4, iou=0.4, verbose=False, device='cuda:0')
+
+            # Draw bounding boxes and compute 3D positions
+            cv_image = self.annotate_image(results[0], time)
+
+            # Convert OpenCV image back to ROS Image message and publish
+            self.image_pub.publish(self.bridge.cv2_to_imgmsg(cv_image, "bgr8"))
+
+        except Exception as e:
+            rospy.logerr(f"Error processing image: {e}")
 
     def convert_2D_to_3D_point(self, x, y):
         K_inv = np.linalg.inv(self.K)
@@ -103,9 +112,32 @@ class ObjectDetector:
 
         return point_map
 
-    def detect_objects(self, image):
-        return self.model(image)
+    def annotate_image(self, result, time):
+        for idx in range(len(result.boxes)):
+            boxes = result.boxes[idx]
+            cls = result.names[int(boxes.cls.item())]
 
+            if cls != 'can':
+                print("Detected something else than can")
+                continue
+
+            x1, y1, x2, y2 = map(int, result.boxes[idx].xyxy[0])
+
+            offset_x = int(np.abs(x1 - x2) / 2)
+            offset_y = int(np.abs(y1 - y2) / 2)
+
+            point = self.convert_2D_to_3D_point(x1 + offset_x, y1 + offset_y)
+            point = self.base_T_xtion(point, time)
+            self.publish_marker(point)
+
+            conf = boxes.conf.item()
+
+            cv2.rectangle(result.orig_img, (x1, y1), (x2, y2), (255, 0, 0), 2)
+            cv2.putText(result.orig_img, cls, (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 1, color=(0, 0 ,255), thickness=2)
+            cv2.putText(result.orig_img, str(round(conf, 2)), (x1, y2), cv2.FONT_HERSHEY_SIMPLEX, 1, color=(0, 0 ,255), thickness=2)
+
+        return result.orig_img
+    
     def publish_marker(self, point):
         marker = Marker()
 
@@ -137,33 +169,9 @@ class ObjectDetector:
         marker.pose.orientation.w = 1.0
 
         self.marker_pub.publish(marker)
-        self.can_position = np.array([point[0], point[1], point[2]]) # should be removed
+        self.can_position = np.array([point[0], point[1], point[2]]) # should be removed (?)
 
-    def annotate_image(self, result, time):
-        for idx in range(len(result.boxes)):
-            boxes = result.boxes[idx]
-            cls = result.names[int(boxes.cls.item())]
-
-            if cls != 'can':
-                print("Detected something else than can")
-                continue
-
-            x1, y1, x2, y2 = map(int, result.boxes[idx].xyxy[0])
-
-            offset_x = int(np.abs(x1 - x2) / 2)
-            offset_y = int(np.abs(y1 - y2) / 2)
-
-            point = self.convert_2D_to_3D_point(x1 + offset_x, y1 + offset_y)
-            point = self.base_T_xtion(point, time)
-            self.publish_marker(point)
-
-            conf = boxes.conf.item()
-
-            cv2.rectangle(result.orig_img, (x1, y1), (x2, y2), (255, 0, 0), 2)
-            cv2.putText(result.orig_img, cls, (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 1, color=(0, 0 ,255), thickness=2)
-            cv2.putText(result.orig_img, str(round(conf, 2)), (x1, y2), cv2.FONT_HERSHEY_SIMPLEX, 1, color=(0, 0 ,255), thickness=2)
-
-        return result.orig_img
+    
 
 if __name__ == '__main__':
     rospy.init_node("detect")
@@ -171,6 +179,7 @@ if __name__ == '__main__':
     image_converter = ObjectDetector()
 
     try: 
+        ObjectDetector()
         rospy.spin()
     except KeyboardInterrupt:
         print("Shutting down!")
