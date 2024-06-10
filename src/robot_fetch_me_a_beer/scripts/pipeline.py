@@ -160,16 +160,24 @@ if __name__ == '__main__':
     # TODO: get from published topic from object detector (or marker)
     rospy.wait_for_service('control_detection')
     try:
+        
         control_detection = rospy.ServiceProxy('control_detection', DetectionControl)
         # Enable detection
         response = control_detection(True)
         rospy.loginfo(response.message)
+        while(objectDetector.can_position is None):
+            if rospy.is_shutdown():
+                rospy.logerr("Terminated.")
+                rospy.sleep(5)
+                break
+            rospy.loginfo("Looking for a can...")
+            rospy.sleep(1)
         
         can_position = objectDetector.can_position
         grasp_object(dmp_ros, gripper, can_position=can_position)
 
         #maybe sleep for a couple of seconds at this point?
-        rospy.sleep(5)
+        # rospy.sleep(5)
 
         # Disable detection
         response = control_detection(False)

@@ -146,12 +146,11 @@ class DmpRos:
         T = np.linspace(0, self.dmp_execution_time, n_steps)
 
         if self.motion == 'grasp':
-            target_position = self.sim_can_pose #TODO: target_position parameter should be used here (needed for pipeline)
             target_orientation = np.array([0.97967917, 0.00438199, 0.16039803, 0.12034117]) #15-00-43
         
             goal_pose = np.array([target_position[0],
                                 target_position[1],
-                                target_position[2] + 0.1,
+                                target_position[2],
                                 target_orientation[0],
                                 target_orientation[1],
                                 target_orientation[2],

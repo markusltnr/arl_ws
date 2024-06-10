@@ -80,13 +80,13 @@ class ObjectDetector:
 
             # Detect objects using YOLOv8
             results = self.model.track(source=cv_image, persist=True, conf=0.4, iou=0.4, verbose=False, device='cuda:0')
-
+            
             # Draw bounding boxes and compute 3D positions
             cv_image = self.annotate_image(results[0], time)
-
+            
             # Convert OpenCV image back to ROS Image message and publish
             self.image_pub.publish(self.bridge.cv2_to_imgmsg(cv_image, "bgr8"))
-
+          
         except Exception as e:
             rospy.logerr(f"Error processing image: {e}")
 
@@ -120,6 +120,7 @@ class ObjectDetector:
             if cls != 'can':
                 print("Detected something else than can")
                 continue
+            
 
             x1, y1, x2, y2 = map(int, result.boxes[idx].xyxy[0])
 
@@ -149,9 +150,9 @@ class ObjectDetector:
         marker.id = 0
 
         # Set the scale of the marker
-        marker.scale.x = 0.2
-        marker.scale.y = 0.2
-        marker.scale.z = 0.2
+        marker.scale.x = 0.1
+        marker.scale.y = 0.1
+        marker.scale.z = 0.1
 
         # Set the color
         marker.color.r = 0.0
