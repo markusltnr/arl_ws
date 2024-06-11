@@ -30,6 +30,7 @@ def grasp_object(dmp_ros : DmpRos, gripper : Gripper, can_position):
 
     # Execute the DMP to perform the desired motion
     dmp_ros.run_dmp(can_position)
+    rospy.sleep(3)
 
     print("Closing gripper")
     gripper.close()
@@ -71,7 +72,7 @@ def move_to_table(goalPublisher : GoalPublisher, goal_pose : MoveBaseGoal) :
     result = goalPublisher.publish_goal(goal_pose)
     return result
 
-def move_head(x = 0.8, y = -0.2, z = 0.8):
+def move_head(x = 0.5, y = -0.2, z = 0.8):
     """
         Move the head to a specific position. x, y and z in the robot base frame
     """
@@ -125,8 +126,6 @@ if __name__ == '__main__':
     move_head()
 
     # Initialize ObjectDetector
-    # TODO: synchronize depth and rgb images in object detector class
-
     objectDetector = ObjectDetector()
 
     # Initialize GoalPublisher
@@ -147,6 +146,7 @@ if __name__ == '__main__':
     print("Moving to table")
     # goal position is from .yaml file
     goal_pose = generate_goal(x=2.0, y=-2.2, z=0.0, q_x=0.0, q_y=0.0, q_z=-0.7071067811865476, q_w=0.7071067811865476)
+    # goal_pose = generate_goal(x=1.1, y=-3.0, z=0.0, q_x=0.0, q_y=0.0, q_z=0.0, q_w=1.0)
 
     # for now we use fixed position, later if there is time we can search for the table
     move_to_table(goalPublisher, goal_pose)
@@ -179,8 +179,10 @@ if __name__ == '__main__':
             can_position.pose.position.y,
             can_position.pose.position.z
             ])
+        
         # can_position = objectDetector.can_position
         grasp_object(dmp_ros, gripper, can_position=can_position)
+        rospy.sleep(10)
 
         # object detection still active here, perhaps if we wanna have it dynamically change in the future?
         # otherwise running it once to get the pose and deactivating it right after seems the way to go
@@ -190,10 +192,7 @@ if __name__ == '__main__':
         rospy.loginfo(response.message)
 
     except rospy.ServiceException as e:
-        rospy.logerr(f"Service call failed: {e}")
-    can_position = objectDetector.can_position
-    
-    
+        rospy.logerr(f"Service call failed: {e}") 
 
     # TODO: stop yolo (done in 'Disable detection' above)
 
@@ -220,3 +219,9 @@ if __name__ == '__main__':
 
     # Detect table? too much work, data set collection etc.
     
+
+
+
+    # TODO: retrieve/place position/orientation right now, he is dropping the can because of the high table??
+    # TODO: fix nans correlated to depth image calculation (2d point to 3d point?)
+    # TODO: what world should we use for simulation? original or navigation?

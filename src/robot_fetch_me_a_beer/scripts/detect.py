@@ -28,11 +28,11 @@ class ObjectDetector:
         self.can_position = None
 
         # get intrinsic matrix 
-        print("Getting camera info ...")
+        # print("Getting camera info ...")
         camera_info = rospy.wait_for_message('/xtion/depth_registered/camera_info', CameraInfo, timeout=5)
         self.K = np.array(camera_info.K).reshape((3, 3))
-        print("Successfully retrieved intrinsic matrix:")
-        print(self.K)
+        # print("Successfully retrieved intrinsic matrix:")
+        # print(self.K)
 
         # load YOLO model
         self.model = YOLO("/home/user/exchange/arl_ws/src/robot_fetch_me_a_beer/yolo/best.pt")
@@ -50,7 +50,7 @@ class ObjectDetector:
         self.depth_sub = message_filters.Subscriber("/xtion/depth_registered/image_raw", Image)
 
         # Time synchronizer for RGB and Depth images
-        self.ts = message_filters.ApproximateTimeSynchronizer([self.image_sub, self.depth_sub], queue_size=10, slop=0.1)
+        self.ts = message_filters.ApproximateTimeSynchronizer([self.image_sub, self.depth_sub], queue_size=10, slop=2)    # chang params?
         self.ts.registerCallback(self.image_callback)
         
         self._xtion_frame = "xtion_rgb_optical_frame"   # frame of depth camera
@@ -130,7 +130,7 @@ class ObjectDetector:
             point = self.convert_2D_to_3D_point(x1 + offset_x, y1 + offset_y)
             point = self.base_T_xtion(point, time)
             self.publish_marker(point)
-            self.publish_can_pose(point[0:3])
+            self.publish_can_pose(point)
 
             conf = boxes.conf.item()
 

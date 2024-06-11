@@ -148,7 +148,7 @@ class DmpRos:
         if self.motion == 'grasp':
             target_orientation = np.array([0.97967917, 0.00438199, 0.16039803, 0.12034117]) #15-00-43
         
-            goal_pose = np.array([target_position[0],
+            goal_pose = np.array([target_position[0],       # offset?
                                 target_position[1],
                                 target_position[2],
                                 target_orientation[0],
