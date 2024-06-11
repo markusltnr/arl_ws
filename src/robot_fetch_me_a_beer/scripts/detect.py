@@ -42,6 +42,7 @@ class ObjectDetector:
         # initialize ROS publishers
         self.image_pub = rospy.Publisher("/xtion/rgb/image_raw2", Image, queue_size=10)
         self.marker_pub = rospy.Publisher("/visualization_marker", Marker, queue_size = 2)
+        self.can_pose_pub = rospy.Publisher("/detected_can_pose", PoseStamped, queue_size=1)
         self.bridge = CvBridge()
 
         # initialize ROS subscribers
@@ -93,10 +94,10 @@ class ObjectDetector:
     def convert_2D_to_3D_point(self, x, y):
         K_inv = np.linalg.inv(self.K)
         depth = self.depth_img[y, x]
-
-        point_2d = np.array([x, y , 1])
-        point_3d = (K_inv @ point_2d) * depth
         
+        point_2d = np.array([x, y , 1])
+        
+        point_3d = (K_inv @ point_2d) * depth
         point = np.array([point_3d[0], point_3d[1], point_3d[2], 1])
         print('3D point: ' + str(point))
         return point
@@ -126,10 +127,10 @@ class ObjectDetector:
 
             offset_x = int(np.abs(x1 - x2) / 2)
             offset_y = int(np.abs(y1 - y2) / 2)
-
             point = self.convert_2D_to_3D_point(x1 + offset_x, y1 + offset_y)
             point = self.base_T_xtion(point, time)
             self.publish_marker(point)
+            self.publish_can_pose(point[0:3])
 
             conf = boxes.conf.item()
 
@@ -171,6 +172,23 @@ class ObjectDetector:
 
         self.marker_pub.publish(marker)
         self.can_position = np.array([point[0], point[1], point[2]]) # should be removed (?)
+
+    
+    def publish_can_pose(self, can_pose):
+        can = PoseStamped()
+        can.header.frame_id = self._base_frame
+        can.header.stamp = rospy.Time.now()
+
+        can.pose.position.x = can_pose[0]
+        can.pose.position.y = can_pose[1]
+        can.pose.position.z = can_pose[2]
+        can.pose.orientation.x = 0.0
+        can.pose.orientation.y = 0.0
+        can.pose.orientation.z = 0.0
+        can.pose.orientation.w = 1.0
+
+        self.can_pose_pub.publish(can)
+
 
     
 
