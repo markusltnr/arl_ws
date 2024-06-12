@@ -182,7 +182,7 @@ if __name__ == '__main__':
         
         # can_position = objectDetector.can_position
         grasp_object(dmp_ros, gripper, can_position=can_position)
-        rospy.sleep(10)
+        rospy.sleep(6)
 
         # object detection still active here, perhaps if we wanna have it dynamically change in the future?
         # otherwise running it once to get the pose and deactivating it right after seems the way to go
@@ -203,10 +203,15 @@ if __name__ == '__main__':
     move_to_table(goalPublisher, goal_pose)
 
     # goal position should be in robot base frame (correct?)
-    place_object(dmp_ros, gripper, target_position=np.array([0.55, -0.2, 0.63]))
+    place_object(dmp_ros, gripper, target_position=np.array([0.8, 0, 0.94]))
+    
+    # rospy.sleep(5) NOTE optionally retrieve robot arm after placing the can
+    # retrieve_object(dmp_ros, gripper, target_position=np.array([0.3, -0.4, 1.10]))
 
     # TODO: Report 
-    # Anish will start with the basic sections
+    # Anish will start with the basic sections: 
+    # Update - completed initial draft of abstract, introduction, Methodology and Results for Manipulation and Detection. 
+    # TODO Remaining: Navigation, Integration and Extension sections
 
     # TODO: Provide shell scripts for seperate actions -> Moritz
 
@@ -222,6 +227,6 @@ if __name__ == '__main__':
 
 
 
-    # TODO: retrieve/place position/orientation right now, he is dropping the can because of the high table??
-    # TODO: fix nans correlated to depth image calculation (2d point to 3d point?)
+    # TODO: retrieve/place position/orientation right now, he is dropping the can because of the high table?? - adjusted the place goal postion to approach above the table
+    # TODO: fix nans correlated to depth image calculation (2d point to 3d point?) - seems like this is resolved with our recent codde adaptations
     # TODO: what world should we use for simulation? original or navigation?
