@@ -6,6 +6,7 @@ Make sure this repository is cloned into the `exchange` directory that is added 
 source /opt/pal/gallium/setup.bash
 cd /home/user/exchange/arl_ws
 catkin_make
+source /home/user/exchange/arl_ws/devel/setup.bash
 ```
 To install all dependencies, run the following commands:
 ```bash
@@ -18,6 +19,11 @@ After that, you can run the following command to start the robot:
 ```bash
 ./start_pipeline.sh
 ```
+
+To control the position of the can from one of the runnning tmux terminal execute:
+source /home/user/exchange/arl_ws/devel/setup.bash 
+roslaunch robot_fetch_me_a_beer set_can.launch can_pose:=0
+
 ## Troubleshooting
 I had an error when using numpy, 
 ```bash
@@ -36,4 +42,9 @@ docker commit <container_id> <image_name>
 Killing tmux
 ```bash
 tmux kill-ses
+```
+
+verify which workspace is sourced from terminal:
+```bash
+echo $ROS_PACKAGE_PATH
 ```
