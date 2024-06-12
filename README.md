@@ -21,8 +21,10 @@ After that, you can run the following command to start the robot:
 ```
 
 To control the position of the can from one of the runnning tmux terminal execute:
+```bash
 source /home/user/exchange/arl_ws/devel/setup.bash 
 roslaunch robot_fetch_me_a_beer set_can.launch can_pose:=0
+```
 
 ## Troubleshooting
 I had an error when using numpy, 
