@@ -190,6 +190,14 @@ class ObjectDetector:
         self.can_pose_pub.publish(can)
 
 
+# TODO NOTE ideally we can make this a child class of dector.ObjectDetector. BUT can we actually use the same service again, or should we have a separate service for this?
+class PersonDetector(ObjectDetector):
+    def __init__(self):
+        ObjectDetector.__init__()
+        self.model = YOLO("yolov8s.pt")  # loading pretrained yolomodel from ultralytics trained on coco dataset with 'person' included as a object category
+        self.person_position = None
+
+
     
 
 if __name__ == '__main__':
