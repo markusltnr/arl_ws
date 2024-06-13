@@ -173,12 +173,20 @@ if __name__ == '__main__':
         #     rospy.loginfo("Looking for a can...")
         #     rospy.sleep(1)
         rospy.loginfo("Looking for a can...")
-        can_position = rospy.wait_for_message(topic="/detected_can_pose", topic_type=PoseStamped, timeout=15)   # maybe some recovery behaviour?
-        can_position = np.array([
-            can_position.pose.position.x,
-            can_position.pose.position.y,
-            can_position.pose.position.z
-            ])
+        while True:
+            try:
+                can_position = rospy.wait_for_message(topic="/detected_can_pose", topic_type=PoseStamped, timeout=15)   # maybe some recovery behaviour?
+                can_position = np.array([
+                    can_position.pose.position.x,
+                    can_position.pose.position.y,
+                    can_position.pose.position.z
+                    ])
+                if can_position is not None:
+                    break
+            except rospy.ROSException as e:
+                rospy.logwarn = "No can detected - moving the head to search for it (soon :D)"
+                break
+                # since we theoretically know the bounds in which we can move the head, we can hard code the search pattern for the head i think
         
         # can_position = objectDetector.can_position
         grasp_object(dmp_ros, gripper, can_position=can_position)
