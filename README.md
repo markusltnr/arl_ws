@@ -37,3 +37,9 @@ Killing tmux
 ```bash
 tmux kill-ses
 ```
+
+
+# initializing ip configs
+cat /etc/hosts
+export ROS_MASTER_URI=http://tiago:11311
+export ROS_IP=10.68.0.128 # ip a

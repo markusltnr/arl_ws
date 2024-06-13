@@ -8,7 +8,6 @@ import pytransform3d.transformations as pt
 import tf
 from std_srvs.srv import Empty
 import rospkg
-from bagpy import bagreader
 import matplotlib.pyplot as plt
 import sys
 
@@ -146,12 +145,11 @@ class DmpRos:
         T = np.linspace(0, self.dmp_execution_time, n_steps)
 
         if self.motion == 'grasp':
-            target_position = self.sim_can_pose #TODO: target_position parameter should be used here (needed for pipeline)
             target_orientation = np.array([0.97967917, 0.00438199, 0.16039803, 0.12034117]) #15-00-43
         
-            goal_pose = np.array([target_position[0],
-                                target_position[1],
-                                target_position[2] + 0.1,
+            goal_pose = np.array([target_position[0]+0.01,       # offset?
+                                target_position[1]+0.06,
+                                target_position[2],
                                 target_orientation[0],
                                 target_orientation[1],
                                 target_orientation[2],
@@ -160,8 +158,8 @@ class DmpRos:
             # target_position = np.array([0.27094205, -0.4120216, 1.05597785]) # from bag file
             target_orientation = np.array([0.97967917, 0.00438199, 0.16039803, 0.12034117]) #15-00-43
 
-            goal_pose = np.array([target_position[0],
-                                  target_position[1],
+            goal_pose = np.array([target_position[0]+0.05,
+                                  target_position[1]+0.045,
                                   target_position[2],
                                   target_orientation[0],
                                   target_orientation[1],
@@ -201,15 +199,18 @@ class DmpRos:
             self.rate.sleep()
 
         # plot_trajectory(y_dmp)
-
-        # self.get_tiago_state()
+        rospy.sleep(8)
+        self.get_tiago_state()
         # print("initial can pose: " + str(initial_can_pose))
         # print("current can pose: " + str(self.sim_can_pose)) 
-        # print("needed EE pose: " + str(self.R_T_EE(goal_pose[:3], goal_pose[3:])))
-        # print("estimated EE pose: " + str(self.R_T_EE(y_dmp[-1][:3], goal_pose[3:])))
-        # print("actual EE pose: " + str(self.pose_EE))
+        print(self.motion)
+        print("needed EE pose: " + str(self.R_T_EE(goal_pose[:3], goal_pose[3:])))
+        print("estimated EE pose: " + str(self.R_T_EE(y_dmp[-1][:3], goal_pose[3:])))
+        print("actual EE pose: " + str(self.pose_EE))
 
 def load_data(file_path):
+    from bagpy import bagreader
+
     reader = bagreader(file_path + 'grasp.bag')
 
     poses = []

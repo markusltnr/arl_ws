@@ -4,13 +4,13 @@ import numpy as np
 from geometry_msgs.msg import PoseStamped
 from gazebo_msgs.msg import ModelStates
 from sensor_msgs.msg import Image, CameraInfo
-from movement_primitives.dmp import CartesianDMP
+#from movement_primitives.dmp import CartesianDMP
 import pytransform3d.transformations as pt
 import rospkg
-from bagpy import bagreader
+#from bagpy import bagreader
 import matplotlib.pyplot as plt
 import sys
-from bagpy import bagreader
+# from bagpy import bagreader
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 from ultralytics import YOLO
@@ -32,8 +32,8 @@ class ObjectDetector:
 
         # load YOLO model
         # ID = 6 # here add your trainID directory
-        self.model = YOLO("/home/user/exchange/arl_ws/src/robot_fetch_me_a_beer/yolo/best.pt")
-        # self.model = YOLO('yolov8n.pt')
+        #self.model = YOLO("/home/user/exchange/arl_ws/src/robot_fetch_me_a_beer/yolo/best.pt")
+        self.model = YOLO('yolov8n.pt')
         
         self.listener = tf.TransformListener()
 
@@ -144,18 +144,18 @@ class ObjectDetector:
             boxes = result.boxes[idx]
             cls = result.names[int(boxes.cls.item())]
 
-            if cls != 'can':
-                print("Detected something else than can")
-                continue
+            # if cls != 'can':
+            #     print("Detected something else than can")
+            #     continue
 
             x1, y1, x2, y2 = map(int, result.boxes[idx].xyxy[0])
 
             offset_x = int(np.abs(x1 - x2) / 2)
             offset_y = int(np.abs(y1 - y2) / 2)
 
-            point = self.convert_2D_to_3D_point(x1 + offset_x, y1 + offset_y)
-            point = self.base_T_xtion(point, time)
-            self.publish_marker(point)
+            # point = self.convert_2D_to_3D_point(x1 + offset_x, y1 + offset_y)
+            # point = self.base_T_xtion(point, time)
+            # self.publish_marker(point)
 
             conf = boxes.conf.item()
 
