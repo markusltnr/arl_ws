@@ -81,8 +81,8 @@ def move_head(x = 0.5, y = -0.2, z = 0.8):
     pub_head_controller = rospy.Publisher(
         '/whole_body_kinematic_controller/gaze_objective_xtion_optical_frame_goal', PoseStamped, queue_size=1, latch=True)
 
-    print("Moving head")
-    # loop function until object was found
+    # right lower = [x=0.5, y=-0.5, z=0.5]
+    # left lower = [x=0.5, y=0.5, z=0.5]
    
     # trajectory_msgs --> JointTrajectory
     gaze_pose = PoseStamped()
@@ -116,24 +116,11 @@ if __name__ == '__main__':
     # Initialize the ROS node
     rospy.init_node("pipeline")
 
-    # TODO: execute ObjectDetector seperately? -> Sergej
-    # one node, which is always running and makes object detector service available
-    # subscribe to this topic, which starts the object detection (topic or better service)
-    # call service to get the detection output
-    # stop calling the service once the can is grasped
-    
-    # Move the head to a specific position
-    move_head()
-
     # Initialize ObjectDetector
     objectDetector = ObjectDetector()
 
     # Initialize GoalPublisher
     goalPublisher = GoalPublisher()
-
-    # TODO: take can position from marker? currently it's being returned from the ObjectDetector class
-    # marker subscriber
-    # marker_sub = rospy.Publisher("/visualization_marker", Marker, callback_image)
 
     # Initialize the gripper for the right arm.
     gripper = Gripper("right")
@@ -151,42 +138,44 @@ if __name__ == '__main__':
     # for now we use fixed position, later if there is time we can search for the table
     move_to_table(goalPublisher, goal_pose)
 
-    # TODO: not yet working, poses instead of trajectory has to be published -> Markus
-    # "/whole_body_kinematic_controller/gaze_objective_xtion_optical_frame_goal" topic
-    # When you publish PoseStamped messages to this topic the robot will move its head, so it looks at the point you have sent
-    move_head()
-
-    # get can position
-    # TODO: get from published topic from object detector (or marker)
+    # start detection service
     rospy.wait_for_service('control_detection')
     try:
-        
         control_detection = rospy.ServiceProxy('control_detection', DetectionControl)
         # Enable detection
         response = control_detection(True)
         rospy.loginfo(response.message)
-        # while(objectDetector.can_position is None):
-        #     if rospy.is_shutdown():
-        #         rospy.logerr("Terminated.")
-        #         rospy.sleep(5)
-        #         break
-        #     rospy.loginfo("Looking for a can...")
-        #     rospy.sleep(1)
         rospy.loginfo("Looking for a can...")
+        i = 0
         while True:
             try:
-                can_position = rospy.wait_for_message(topic="/detected_can_pose", topic_type=PoseStamped, timeout=15)   # maybe some recovery behaviour?
+                if i == 0:
+                    can_position = rospy.wait_for_message(topic="/detected_can_pose", topic_type=PoseStamped, timeout=2)   # maybe some recovery behaviour?
+                else:
+                    can_position = rospy.wait_for_message(topic="/detected_can_pose", topic_type=PoseStamped, timeout=10)
                 can_position = np.array([
                     can_position.pose.position.x,
                     can_position.pose.position.y,
                     can_position.pose.position.z
                     ])
                 if can_position is not None:
+                    rospy.loginfo("Can Detected! -> Centering the view of the can")
+                    move_head(
+                        x=can_position[0],
+                        y=can_position[1],
+                        z=can_position[2])
+                    rospy.sleep(3)
+                    can_position = rospy.wait_for_message(topic="/detected_can_pose", topic_type=PoseStamped, timeout=10)
+                    can_position = np.array([
+                        can_position.pose.position.x,
+                        can_position.pose.position.y,
+                        can_position.pose.position.z
+                        ])
                     break
             except rospy.ROSException as e:
-                rospy.logwarn = "No can detected - moving the head to search for it (soon :D)"
-                break
-                # since we theoretically know the bounds in which we can move the head, we can hard code the search pattern for the head i think
+                rospy.logwarn("No can detected - moving the head to search for it...")  
+                move_head(x=0.5, y=-0.5+i%2, z=0.5)
+                i += 1
         
         # can_position = objectDetector.can_position
         grasp_object(dmp_ros, gripper, can_position=can_position)
@@ -202,7 +191,6 @@ if __name__ == '__main__':
     except rospy.ServiceException as e:
         rospy.logerr(f"Service call failed: {e}") 
 
-    # TODO: stop yolo (done in 'Disable detection' above)
 
     retrieve_object(dmp_ros, gripper, target_position=np.array([0.27094205, -0.4120216, 1.05597785]))
 

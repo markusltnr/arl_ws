@@ -99,7 +99,7 @@ class ObjectDetector:
         
         point_3d = (K_inv @ point_2d) * depth
         point = np.array([point_3d[0], point_3d[1], point_3d[2], 1])
-        print('3D point: ' + str(point))
+        # print('3D point: ' + str(point))
         return point
     
     def base_T_xtion(self, point, time):
