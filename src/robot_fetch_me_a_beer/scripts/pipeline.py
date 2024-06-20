@@ -136,6 +136,8 @@ if __name__ == '__main__':
     # goal_pose = generate_goal(x=1.1, y=-3.0, z=0.0, q_x=0.0, q_y=0.0, q_z=0.0, q_w=1.0)
 
     # for now we use fixed position, later if there is time we can search for the table
+    start_t = rospy.Time.now()
+    rospy.loginfo(f"Execution time: {start_t.to_sec()}")
     move_to_table(goalPublisher, goal_pose)
 
     # start detection service
@@ -179,7 +181,7 @@ if __name__ == '__main__':
         
         # can_position = objectDetector.can_position
         grasp_object(dmp_ros, gripper, can_position=can_position)
-        rospy.sleep(6)
+        rospy.sleep(10)
 
         # object detection still active here, perhaps if we wanna have it dynamically change in the future?
         # otherwise running it once to get the pose and deactivating it right after seems the way to go
@@ -200,29 +202,11 @@ if __name__ == '__main__':
 
     # goal position should be in robot base frame (correct?)
     place_object(dmp_ros, gripper, target_position=np.array([0.8, 0, 0.94]))
+    end_t = rospy.Time.now()
+    Diff_t = (end_t - start_t).to_sec()
+    rospy.loginfo(f"Execution time: {Diff_t}")
     
     # rospy.sleep(5) NOTE optionally retrieve robot arm after placing the can
     # retrieve_object(dmp_ros, gripper, target_position=np.array([0.3, -0.4, 1.10]))
 
-    # TODO: Report 
-    # Anish will start with the basic sections: 
-    # Update - completed initial draft of abstract, introduction, Methodology and Results for Manipulation and Detection. 
-    # TODO Remaining: Navigation, Integration and Extension sections
-
-    # TODO: Provide shell scripts for seperate actions -> Moritz
-
-
-    # Extension:
-    # Implement on a real TIAGO++ robot
-    # Handover beer can to person instead of placing on table
-    #   same DMP with different goal pose can be used (?)
-    #   Human Detection (YOLO), approximate hand, give goal
-
-    # Detect table? too much work, data set collection etc.
     
-
-
-
-    # TODO: retrieve/place position/orientation right now, he is dropping the can because of the high table?? - adjusted the place goal postion to approach above the table
-    # TODO: fix nans correlated to depth image calculation (2d point to 3d point?) - seems like this is resolved with our recent codde adaptations
-    # TODO: what world should we use for simulation? original or navigation?

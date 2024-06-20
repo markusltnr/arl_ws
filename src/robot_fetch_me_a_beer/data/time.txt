@@ -1,0 +1,4 @@
+pose_6: 86.41
+pose_5: 83.992
+pose_4: 88.136        technically failed, was too far
+pose_3: 87.786
