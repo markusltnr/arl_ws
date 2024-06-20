@@ -77,8 +77,9 @@ class GoalPublisher:
 
 if __name__ == "__main__":
 	# Initialize node, execute path, compute metrics
+	rospy.init_node('goal_publisher')
 	print('Initializing GoalPublisher')
-	publisher = GoalPublisher('/home/user/exchange/Navigation/pose_pairs.yaml')
+	publisher = GoalPublisher('/home/robotlearning/Documents/arl24/arl_ws/src/robot_fetch_me_a_beer/poses/pose_pairs.yaml')
 
 	print('Generating Goals')
 	poses = _generate_goals(publisher.poses)

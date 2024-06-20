@@ -130,13 +130,13 @@ if __name__ == '__main__':
     # stop calling the service once the can is grasped
     
     # Move the head to a specific position
-    move_head()
+    # move_head()
 
     # Initialize ObjectDetector
     objectDetector = ObjectDetector()
 
     # Initialize GoalPublisher
-    # goalPublisher = GoalPublisher()
+    goalPublisher = GoalPublisher()
 
     # TODO: take can position from marker? currently it's being returned from the ObjectDetector class
     # marker subscriber
@@ -152,51 +152,58 @@ if __name__ == '__main__':
 
     print("Moving to table")
     # goal position is from .yaml file
-    # goal_pose = generate_goal(x=2.0, y=-2.2, z=0.0, q_x=0.0, q_y=0.0, q_z=-0.7071067811865476, q_w=0.7071067811865476)
-    # goal_pose = generate_goal(x=1.1, y=-3.0, z=0.0, q_x=0.0, q_y=0.0, q_z=0.0, q_w=1.0)
+    goal_pose = generate_goal(x=0.569, y=-0.19, z=0.0, q_x=0.0, q_y=0.0, q_z=0.0, q_w=1.0)
+    #goal_pose = generate_goal(x=1.1, y=-3.0, z=0.0, q_x=0.0, q_y=0.0, q_z=0.0, q_w=1.0)
 
     # for now we use fixed position, later if there is time we can search for the table
-    # move_to_table(goalPublisher, goal_pose)
+    move_to_table(goalPublisher, goal_pose)
 
     # TODO: not yet working, poses instead of trajectory has to be published -> Markus
     # "/whole_body_kinematic_controller/gaze_objective_xtion_optical_frame_goal" topic
     # When you publish PoseStamped messages to this topic the robot will move its head, so it looks at the point you have sent
-    move_head()
+    # move_head()
 
     # get can position
     # TODO: get from published topic from object detector (or marker)
     rospy.wait_for_service('control_detection')
     try:
-        
         control_detection = rospy.ServiceProxy('control_detection', DetectionControl)
         # Enable detection
         response = control_detection(True)
         rospy.loginfo(response.message)
-        # while(objectDetector.can_position is None):
-        #     if rospy.is_shutdown():
-        #         rospy.logerr("Terminated.")
-        #         rospy.sleep(5)
-        #         break
-        #     rospy.loginfo("Looking for a can...")
-        #     rospy.sleep(1)
         rospy.loginfo("Looking for a can...")
+        i = 0
         while True:
             try:
-                can_position = rospy.wait_for_message(topic="/detected_can_pose", topic_type=PoseStamped, timeout=15)   # maybe some recovery behaviour?
+                if i == 0:
+                    can_position = rospy.wait_for_message(topic="/detected_can_pose", topic_type=PoseStamped, timeout=2)   # maybe some recovery behaviour?
+                else:
+                    can_position = rospy.wait_for_message(topic="/detected_can_pose", topic_type=PoseStamped, timeout=10)
                 can_position = np.array([
                     can_position.pose.position.x,
                     can_position.pose.position.y,
                     can_position.pose.position.z
                     ])
                 if can_position is not None:
+                    rospy.loginfo("Can Detected! -> Centering the view of the can")
+                    move_head(
+                        x=can_position[0],
+                        y=can_position[1],
+                        z=can_position[2])
+                    rospy.sleep(3)
+                    can_position = rospy.wait_for_message(topic="/detected_can_pose", topic_type=PoseStamped, timeout=10)
+                    can_position = np.array([
+                        can_position.pose.position.x,
+                        can_position.pose.position.y,
+                        can_position.pose.position.z
+                        ])
                     break
             except rospy.ROSException as e:
-                rospy.logwarn = "No can detected - moving the head to search for it (soon :D)"
-                break
-                # since we theoretically know the bounds in which we can move the head, we can hard code the search pattern for the head i think
+                rospy.logwarn("No can detected - moving the head to search for it...")  
+                move_head(x=0.5, y=-0.5+i%2, z=0.5)
+                i += 1
         
         # can_position = objectDetector.can_position
-        # print(can_position)
         grasp_object(dmp_ros, gripper, can_position=can_position)
         rospy.sleep(6)
 
@@ -207,6 +214,7 @@ if __name__ == '__main__':
         response = control_detection(False)
         rospy.loginfo(response.message)
 
+
     except rospy.ServiceException as e:
         rospy.logerr(f"Service call failed: {e}") 
 
@@ -215,11 +223,12 @@ if __name__ == '__main__':
     retrieve_object(dmp_ros, gripper, target_position=np.array([0.27094205, -0.4120216, 1.05597785]))
 
     # goal position is from .yaml file
-    # goal_pose = generate_goal(x=0.5, y=1.4, z=0.0, q_x=0.0, q_y=0.0, q_z=0.7071067811865476, q_w=0.7071067811865476)
-    # move_to_table(goalPublisher, goal_pose)
+    goal_pose = generate_goal(x=-2.971, y=0.153, z=0.0, q_x=0.0, q_y=0.0, q_z=1.0, q_w=0.0)
+    move_to_table(goalPublisher, goal_pose)
 
     # goal position should be in robot base frame (correct?)
     # place_object(dmp_ros, gripper, target_position=np.array([0.8, 0, 0.94]))
+    can_position[2] += 0.4
     place_object(dmp_ros, gripper, target_position=can_position)
     
     # rospy.sleep(5) NOTE optionally retrieve robot arm after placing the can

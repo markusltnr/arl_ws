@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import sys
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
-from ultralytics import YOLO
+from ultralytics import YOLOWorld
 from visualization_msgs.msg import Marker
 import tf
 import message_filters
@@ -35,7 +35,9 @@ class ObjectDetector:
 
         # load YOLO model
         # self.model = YOLO("/home/user/exchange/arl_ws/src/robot_fetch_me_a_beer/yolo/best.pt")
-        self.model = YOLO('yolov8x.pt').to("cuda:0")
+        # self.model = YOLO('yolov8x.pt').to("cuda:0")
+        self.model = YOLOWorld("yolov8s-world.pt").to("cuda:0")
+        self.model.set_classes(["yellow can"])
         
         self.listener = tf.TransformListener()
 
@@ -118,7 +120,7 @@ class ObjectDetector:
             boxes = result.boxes[idx]
             cls = result.names[int(boxes.cls.item())]
 
-            if cls != 'bottle':
+            if cls != 'yellow can':
                 # print("Detected something else than can")
                 continue
             
