@@ -6,17 +6,28 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   sensor_msgs
+  message_generation
+)
+
+add_service_files(
+  FILES
+  DetectionControl.srv  # add service definition file here
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
 )
 
 
 catkin_package(
-#  INCLUDE_DIRS include
+#  INCLUDE_DIRS srv
 #  LIBRARIES robot_fetch_me_a_beer
-#  CATKIN_DEPENDS other_catkin_pkg
+#  CATKIN_DEPENDS rospy std_msgs
 #  DEPENDS system_lib
 )
 
 include_directories(
-# include
+#include
   ${catkin_INCLUDE_DIRS}
 )

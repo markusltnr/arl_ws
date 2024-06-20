@@ -89,7 +89,7 @@ class DmpRos:
         pub.publish(msg)
 
     def get_tiago_state(self):
-        print("get tiago state...")
+        # print("get tiago state...")
         self.listener.waitForTransform(self._base_frame, self._pose_EE_frame, rospy.Time(0), rospy.Duration(5))
         # Update the TIAGo's end-effector and grasping pose
         trans, rot = self.listener.lookupTransform(self._base_frame, self._pose_EE_frame, rospy.Time(0))
@@ -146,12 +146,11 @@ class DmpRos:
         T = np.linspace(0, self.dmp_execution_time, n_steps)
 
         if self.motion == 'grasp':
-            target_position = self.sim_can_pose #TODO: target_position parameter should be used here (needed for pipeline)
             target_orientation = np.array([0.97967917, 0.00438199, 0.16039803, 0.12034117]) #15-00-43
         
-            goal_pose = np.array([target_position[0],
+            goal_pose = np.array([target_position[0],       # offset?
                                 target_position[1],
-                                target_position[2] + 0.1,
+                                target_position[2],
                                 target_orientation[0],
                                 target_orientation[1],
                                 target_orientation[2],
@@ -199,8 +198,20 @@ class DmpRos:
             # publish pose
             self.publish_pose(self.pub_des_pose, self._base_frame, generated_position, generated_orientation)
             self.rate.sleep()
-
-        # plot_trajectory(y_dmp)
+        
+        # while not rospy.is_shutdown():
+        #         self.get_tiago_state()
+        #         position_error = np.linalg.norm(goal_pose[0:3] - self.pose_G[0:3], axis=-1)
+        #         print('Position error: ', position_error)   
+        #         if position_error < 0.04 and self.motion=='grasp':
+        #             print("Reached close enough position, proceeding")
+        #             break
+        #         elif position_error < 0.08 and self.motion=='place':
+        #             print("Reached close enough position, proceeding")
+        #             break
+        #         elif position_error < 0.16 and self.motion=='retrieve':
+        #             print("Reached close enough position, proceeding")
+        #             break
 
         # self.get_tiago_state()
         # print("initial can pose: " + str(initial_can_pose))

@@ -12,6 +12,7 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from manipulate import Gripper, DmpRos
 from detect import ObjectDetector
 from navigate import GoalPublisher
+from robot_fetch_me_a_beer.srv import DetectionControl
 
 dmp_folder = '/home/user/exchange/arl_ws/src/robot_fetch_me_a_beer/dmp/'
 
@@ -29,6 +30,7 @@ def grasp_object(dmp_ros : DmpRos, gripper : Gripper, can_position):
 
     # Execute the DMP to perform the desired motion
     dmp_ros.run_dmp(can_position)
+    rospy.sleep(3)
 
     print("Closing gripper")
     gripper.close()
@@ -70,7 +72,7 @@ def move_to_table(goalPublisher : GoalPublisher, goal_pose : MoveBaseGoal) :
     result = goalPublisher.publish_goal(goal_pose)
     return result
 
-def move_head(x = 0.8, y = -0.2, z = 0.8):
+def move_head(x = 0.5, y = -0.2, z = 0.8):
     """
         Move the head to a specific position. x, y and z in the robot base frame
     """
@@ -79,8 +81,8 @@ def move_head(x = 0.8, y = -0.2, z = 0.8):
     pub_head_controller = rospy.Publisher(
         '/whole_body_kinematic_controller/gaze_objective_xtion_optical_frame_goal', PoseStamped, queue_size=1, latch=True)
 
-    print("Moving head")
-    # loop function until object was found
+    # right lower = [x=0.5, y=-0.5, z=0.5]
+    # left lower = [x=0.5, y=0.5, z=0.5]
    
     # trajectory_msgs --> JointTrajectory
     gaze_pose = PoseStamped()
@@ -114,26 +116,11 @@ if __name__ == '__main__':
     # Initialize the ROS node
     rospy.init_node("pipeline")
 
-    # TODO: execute ObjectDetector seperately? -> Sergej
-    # one node, which is always running and makes object detector service available
-    # subscribe to this topic, which starts the object detection (topic or better service)
-    # call service to get the detection output
-    # stop calling the service once the can is grasped
-    
-    # Move the head to a specific position
-    move_head()
-
     # Initialize ObjectDetector
-    # TODO: synchronize depth and rgb images in object detector class
-
     objectDetector = ObjectDetector()
 
     # Initialize GoalPublisher
     goalPublisher = GoalPublisher()
-
-    # TODO: take can position from marker? currently it's being returned from the ObjectDetector class
-    # marker subscriber
-    # marker_sub = rospy.Publisher("/visualization_marker", Marker, callback_image)
 
     # Initialize the gripper for the right arm.
     gripper = Gripper("right")
@@ -146,22 +133,66 @@ if __name__ == '__main__':
     print("Moving to table")
     # goal position is from .yaml file
     goal_pose = generate_goal(x=2.0, y=-2.2, z=0.0, q_x=0.0, q_y=0.0, q_z=-0.7071067811865476, q_w=0.7071067811865476)
+    # goal_pose = generate_goal(x=1.1, y=-3.0, z=0.0, q_x=0.0, q_y=0.0, q_z=0.0, q_w=1.0)
 
     # for now we use fixed position, later if there is time we can search for the table
+    start_t = rospy.Time.now()
+    rospy.loginfo(f"Execution time: {start_t.to_sec()}")
     move_to_table(goalPublisher, goal_pose)
 
-    # TODO: not yet working, poses instead of trajectory has to be published -> Markus
-    # "/whole_body_kinematic_controller/gaze_objective_xtion_optical_frame_goal" topic
-    # When you publish PoseStamped messages to this topic the robot will move its head, so it looks at the point you have sent
-    move_head()
+    # start detection service
+    rospy.wait_for_service('control_detection')
+    try:
+        control_detection = rospy.ServiceProxy('control_detection', DetectionControl)
+        # Enable detection
+        response = control_detection(True)
+        rospy.loginfo(response.message)
+        rospy.loginfo("Looking for a can...")
+        i = 0
+        while True:
+            try:
+                if i == 0:
+                    can_position = rospy.wait_for_message(topic="/detected_can_pose", topic_type=PoseStamped, timeout=2)   # maybe some recovery behaviour?
+                else:
+                    can_position = rospy.wait_for_message(topic="/detected_can_pose", topic_type=PoseStamped, timeout=10)
+                can_position = np.array([
+                    can_position.pose.position.x,
+                    can_position.pose.position.y,
+                    can_position.pose.position.z
+                    ])
+                if can_position is not None:
+                    rospy.loginfo("Can Detected! -> Centering the view of the can")
+                    move_head(
+                        x=can_position[0],
+                        y=can_position[1],
+                        z=can_position[2])
+                    rospy.sleep(3)
+                    can_position = rospy.wait_for_message(topic="/detected_can_pose", topic_type=PoseStamped, timeout=10)
+                    can_position = np.array([
+                        can_position.pose.position.x,
+                        can_position.pose.position.y,
+                        can_position.pose.position.z
+                        ])
+                    break
+            except rospy.ROSException as e:
+                rospy.logwarn("No can detected - moving the head to search for it...")  
+                move_head(x=0.5, y=-0.5+i%2, z=0.5)
+                i += 1
+        
+        # can_position = objectDetector.can_position
+        grasp_object(dmp_ros, gripper, can_position=can_position)
+        rospy.sleep(10)
 
-    # get can position
-    # TODO: get from published topic from object detector (or marker)
-    can_position = objectDetector.can_position
-    
-    grasp_object(dmp_ros, gripper, can_position=can_position)
+        # object detection still active here, perhaps if we wanna have it dynamically change in the future?
+        # otherwise running it once to get the pose and deactivating it right after seems the way to go
 
-    # TODO: stop yolo 
+        # Disable detection
+        response = control_detection(False)
+        rospy.loginfo(response.message)
+
+    except rospy.ServiceException as e:
+        rospy.logerr(f"Service call failed: {e}") 
+
 
     retrieve_object(dmp_ros, gripper, target_position=np.array([0.27094205, -0.4120216, 1.05597785]))
 
@@ -170,19 +201,12 @@ if __name__ == '__main__':
     move_to_table(goalPublisher, goal_pose)
 
     # goal position should be in robot base frame (correct?)
-    place_object(dmp_ros, gripper, target_position=np.array([0.55, -0.2, 0.63]))
+    place_object(dmp_ros, gripper, target_position=np.array([0.8, 0, 0.94]))
+    end_t = rospy.Time.now()
+    Diff_t = (end_t - start_t).to_sec()
+    rospy.loginfo(f"Execution time: {Diff_t}")
+    
+    # rospy.sleep(5) NOTE optionally retrieve robot arm after placing the can
+    # retrieve_object(dmp_ros, gripper, target_position=np.array([0.3, -0.4, 1.10]))
 
-    # TODO: Report 
-    # Anish will start with the basic sections
-
-    # TODO: Provide shell scripts for seperate actions -> Moritz
-
-
-    # Extension:
-    # Implement on a real TIAGO++ robot
-    # Handover beer can to person instead of placing on table
-    #   same DMP with different goal pose can be used (?)
-    #   Human Detection (YOLO), approximate hand, give goal
-
-    # Detect table? too much work, data set collection etc.
     
